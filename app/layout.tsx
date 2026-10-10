@@ -17,8 +17,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable} ${deva.variable} h-full antialiased`}>
-      <body className="relative min-h-full">
+    <html lang="en" suppressHydrationWarning className={`${display.variable} ${body.variable} ${mono.variable} ${deva.variable} h-full antialiased`}>
+      <body suppressHydrationWarning className="relative min-h-full">
         <KidharProvider>
           <Backdrop />
           <div className="relative z-10 flex min-h-screen flex-col">

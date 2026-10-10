@@ -10,7 +10,8 @@ import type { Status } from "@/lib/store";
 type Row = { id: string; createdAt: number; status: Status; source: string; message: string; type: string | null; severity: number | null; radius_m: number | null; lowConfidence: boolean; units: number };
 type Overview = {
   stats: { total: number; last24h: number; open: number; avgSeverity: number | null; avgFastestEta: number | null; lowConfidence: number; byStatus: Record<string, number>; byType: Record<string, number>; bySource: Record<string, number> };
-  health: { storeBackend: string; storeOk: boolean; storeError: string; anthropicKey: boolean; units: { fire: number; police: number; hospital: number }; replayEntries: number; geocacheEntries: number; limits: { maxMessageChars: number; callsPerMinute: number } };
+  tickets: { byPriority: Record<string, number>; byFlag: Record<string, number>; byResolution: Record<string, number>; escalated: number; unassignedOpen: number; slaCompliancePct: number | null; overdueNow: number; avgTimeToDispatchSec: number | null };
+  health: { storeBackend: string; ticketStorage: string; storeOk: boolean; storeError: string; anthropicKey: boolean; units: { fire: number; police: number; hospital: number }; replayEntries: number; geocacheEntries: number; limits: { maxMessageChars: number; callsPerMinute: number } };
   incidents: Row[];
 };
 
@@ -172,6 +173,26 @@ export default function Admin() {
         </Card>
       </div>
 
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+        <MetricBlock icon={<Timer size={18} />} label="Response target met" value={d.tickets.slaCompliancePct != null ? `${d.tickets.slaCompliancePct}%` : "—"} />
+        <MetricBlock icon={<Timer size={18} />} label="Avg time to dispatch" value={d.tickets.avgTimeToDispatchSec != null ? `${d.tickets.avgTimeToDispatchSec}s` : "—"} />
+        <MetricBlock icon={<TriangleAlert size={18} />} label="Overdue now" value={String(d.tickets.overdueNow)} />
+        <MetricBlock icon={<TriangleAlert size={18} />} label="Escalated" value={String(d.tickets.escalated)} />
+        <MetricBlock icon={<Activity size={18} />} label="Open, unassigned" value={String(d.tickets.unassignedOpen)} />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card title="Tickets by priority">
+          <Bars data={d.tickets.byPriority} />
+        </Card>
+        <Card title="Flags in use">
+          <Bars data={d.tickets.byFlag} />
+        </Card>
+        <Card title="Outcomes">
+          <Bars data={d.tickets.byResolution} />
+        </Card>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-3">
         <Card title="System health" className="lg:col-span-2">
           <ul className="grid gap-2 text-sm sm:grid-cols-2">
@@ -179,6 +200,12 @@ export default function Admin() {
               <span>Storage</span>
               <Badge color={h.storeOk ? "#16a34a" : "#dc2626"}>
                 {h.storeBackend} · {h.storeOk ? "ok" : "error"}
+              </Badge>
+            </li>
+            <li className="flex items-center justify-between rounded-xl bg-white/50 p-3">
+              <span>Ticket storage</span>
+              <Badge color={h.ticketStorage === "ok" ? "#16a34a" : h.ticketStorage === "missing" ? "#dc2626" : "#d97706"}>
+                {h.ticketStorage === "missing" ? "run migration 002" : h.ticketStorage}
               </Badge>
             </li>
             <li className="flex items-center justify-between rounded-xl bg-white/50 p-3">

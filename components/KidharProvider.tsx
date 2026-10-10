@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import type { Cand, Pin, UnitOut } from "./MapView";
 import type { Incident, Status } from "@/lib/store";
 import { progress } from "@/lib/sim";
+import type { TicketOps } from "@/lib/ticket";
 
 export type Gps = { lat: number; lon: number; accuracy_m: number };
 
@@ -34,6 +35,7 @@ export type Result = {
   reasoning_steps: string[];
   checks: Check[];
   caller_language?: string;
+  duplicate_of?: { id: string; distance_m: number; minutes_ago: number } | null;
 };
 export type Dispatch = { summary: string; dispatch_note: string; caller_sms: string };
 export type Phase = "idle" | "locating" | "units" | "writing" | "done";
@@ -65,7 +67,10 @@ type Ctx = {
   activeIncident: Incident | null;
   now: number;
   openIncident: (inc: Incident) => void;
-  setStatus: (id: string, status: Status) => Promise<void>;
+  setStatus: (id: string, status: Status, resolution?: { code: string; note: string }) => Promise<boolean>;
+  ticketOp: (id: string, ops: TicketOps) => Promise<boolean>;
+  operator: string;
+  setOperator: (name: string) => void;
   dispatchUnit: (u: UnitOut) => Promise<void>;
   refreshIncidents: () => Promise<void>;
   callerLog: string[];
@@ -134,25 +139,52 @@ export default function KidharProvider({ children }: { children: ReactNode }) {
 
   const activeIncident = incidents.find((i) => i.id === activeId) ?? null;
 
-  const setStatus = useCallback(
-    async (id: string, status: Status) => {
-      await fetch(`/api/incidents/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
+  const [operator, setOperatorS] = useState("");
+  useEffect(() => {
+    setOperatorS(stored("kidhar.operator") ?? "");
+  }, []);
+  const setOperator = (name: string) => {
+    setOperatorS(name);
+    store("kidhar.operator", name);
+  };
+
+  /** PATCH an incident and surface the server's message (409 busy unit, 400 missing resolution, ...) instead of failing silently. */
+  const patchIncident = useCallback(
+    async (id: string, body: unknown) => {
+      const r = await fetch(`/api/incidents/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        setError(d.error ?? `Request failed (${r.status})`);
+        return false;
+      }
+      const d = await r.json().catch(() => ({}));
+      setError(d.warning ?? "");
       await refreshIncidents();
+      return true;
     },
     [refreshIncidents],
+  );
+
+  const setStatus = useCallback(
+    async (id: string, status: Status, resolution?: { code: string; note: string }) =>
+      patchIncident(id, { status, ticket: { by: operator || "operator", resolution } }),
+    [patchIncident, operator],
+  );
+
+  const ticketOp = useCallback(
+    async (id: string, ops: TicketOps) => patchIncident(id, { ticket: { ...ops, by: operator || "operator" } }),
+    [patchIncident, operator],
   );
 
   const dispatchUnit = useCallback(
     async (u: UnitOut) => {
       if (!activeId) return;
-      await fetch(`/api/incidents/${activeId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assign: { name: u.name, type: u.type, lat: u.lat, lon: u.lon, eta_min: u.eta_min } }),
+      await patchIncident(activeId, {
+        assign: { name: u.name, type: u.type, lat: u.lat, lon: u.lon, eta_min: u.eta_min },
+        ticket: { by: operator || "operator" },
       });
-      await refreshIncidents();
     },
-    [activeId, refreshIncidents],
+    [activeId, patchIncident, operator],
   );
 
   // When every assigned unit has arrived, the incident moves to "on scene".
@@ -310,7 +342,7 @@ export default function KidharProvider({ children }: { children: ReactNode }) {
   }, [lang]);
 
   return (
-    <C.Provider value={{ role, setRole, lang, setLang, offline, message, setMessage, busy, phase, replay, setReplay, trace, cands, pin, units, result, dispatch, error, elapsed, run, reply, callerLog, listening, listen, speak, incidents, activeId, activeIncident, now, openIncident, setStatus, dispatchUnit, refreshIncidents }}>
+    <C.Provider value={{ role, setRole, lang, setLang, offline, message, setMessage, busy, phase, replay, setReplay, trace, cands, pin, units, result, dispatch, error, elapsed, run, reply, callerLog, listening, listen, speak, incidents, activeId, activeIncident, now, openIncident, setStatus, ticketOp, operator, setOperator, dispatchUnit, refreshIncidents }}>
       {children}
     </C.Provider>
   );

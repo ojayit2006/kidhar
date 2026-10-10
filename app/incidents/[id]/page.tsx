@@ -7,6 +7,7 @@ import { ArrowLeft, Check, X } from "lucide-react";
 import { Badge, Card, SEVERITY_COLORS, Tag } from "@/components/ui";
 import { useKidhar } from "@/components/KidharProvider";
 import { STATUS_COLOR, STATUS_LABEL, progress, remainingMin } from "@/lib/sim";
+import { PRIORITY_COLOR, SLA_COLOR, flagMeta, fmtDuration, resolutionLabel, slaInfo, ticketOf } from "@/lib/ticket";
 
 const MapView = dynamic(() => import("@/components/MapView"), { ssr: false });
 
@@ -110,6 +111,53 @@ export default function IncidentDetail({ params }: { params: Promise<{ id: strin
           </ul>
         </Card>
       </div>
+
+      {ticketSummary()}
     </div>
   );
+
+  function ticketSummary() {
+    const t = ticketOf(inc!);
+    const sla = slaInfo(inc!, now || Date.now());
+    return (
+      <Card title="Ticket" action={<Badge color={PRIORITY_COLOR[t.priority]}>P{t.priority}</Badge>}>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="space-y-3 text-sm">
+            <p>
+              Owner: <b>{t.assignee ?? "unassigned"}</b>
+            </p>
+            <p>
+              Response target:{" "}
+              <b style={{ color: SLA_COLOR[sla.state] }}>
+                {sla.state === "met" ? `met (${fmtDuration(sla.elapsedMs)})` : sla.state === "missed" ? `missed (${fmtDuration(sla.elapsedMs)})` : sla.state === "breached" ? "overdue" : sla.state === "closed" ? "n/a" : "running"}
+              </b>
+            </p>
+            {t.resolution && (
+              <p>
+                Outcome: <b>{resolutionLabel(t.resolution.code)}</b>
+                {t.resolution.note ? `. ${t.resolution.note}` : ""} <span className="text-gray-500">({t.resolution.by})</span>
+              </p>
+            )}
+            <div className="flex flex-wrap gap-1.5">
+              {t.flags.length === 0 && <span className="text-xs text-gray-500">No flags</span>}
+              {t.flags.map((f) => (
+                <span key={f} className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ color: flagMeta(f)?.color, background: `${flagMeta(f)?.color}1f`, border: `1px solid ${flagMeta(f)?.color}55` }}>
+                  {flagMeta(f)?.label ?? f}
+                </span>
+              ))}
+            </div>
+          </div>
+          <ul className="max-h-72 space-y-2 overflow-y-auto pr-1">
+            {[...t.notes].reverse().map((n, i) => (
+              <li key={i} className={`rounded-lg px-3 py-2 text-xs ${n.kind === "note" ? "bg-white/80" : "bg-white/40 text-gray-400"}`}>
+                <span className="mono mr-2 text-[10px] text-gray-500">{new Date(n.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                {n.kind === "note" && <b className="mr-1">{n.by}:</b>}
+                {n.text}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </Card>
+    );
+  }
 }

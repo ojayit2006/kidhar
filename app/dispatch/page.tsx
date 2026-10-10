@@ -6,7 +6,10 @@ import { Mic, Volume2, Send, Timer, Siren, MapPinned, Truck, Check, X, Loader2 }
 import { ROLES, useKidhar } from "@/components/KidharProvider";
 import { Badge, Card, Gauge, MetricBlock, SEVERITY_COLORS, Tag } from "@/components/ui";
 import WeatherCard from "@/components/WeatherCard";
+import TicketPanel from "@/components/TicketPanel";
+import ForecastCard from "@/components/ForecastCard";
 import { STATUS_COLOR, STATUS_LABEL, progress, remainingMin } from "@/lib/sim";
+import { PRIORITY_COLOR, SLA_COLOR, flagMeta, fmtDuration, queueRank, slaInfo, ticketOf } from "@/lib/ticket";
 import type { Status } from "@/lib/store";
 
 const STATUS_ORDER: Status[] = ["new", "dispatched", "on_scene", "resolved"];
@@ -30,6 +33,7 @@ export default function Dispatch() {
   const k = useKidhar();
   const [tab, setTab] = useState<(typeof TABS)[number]>("Reasoning");
   const [replyText, setReplyText] = useState("");
+  const [qFilter, setQFilter] = useState<"all" | "mine" | "escalated" | "overdue">("all");
   const prefers = ROLES.find((r) => r.id === k.role)!.prefers;
 
   const units = [...k.units].sort((a, b) => (a.type === prefers ? -1 : 0) - (b.type === prefers ? -1 : 0) || a.distance_m - b.distance_m);
@@ -40,34 +44,90 @@ export default function Dispatch() {
   const phaseIdx = STEPS.findIndex((s) => s.key === k.phase);
   const inc = k.activeIncident;
   const assigned = inc?.assigned ?? [];
-  const queue = [...k.incidents].filter((i) => i.status !== "resolved").sort((a, b) => (b.result?.severity ?? 0) - (a.result?.severity ?? 0) || b.createdAt - a.createdAt);
+  const nowMs = k.now || Date.now();
+  const me = k.operator.trim();
+  const open = k.incidents.filter((i) => i.status !== "resolved");
+  const queue = open
+    .filter((i) => {
+      const t = ticketOf(i);
+      if (qFilter === "mine") return me !== "" && t.assignee === me;
+      if (qFilter === "escalated") return t.escalated;
+      if (qFilter === "overdue") return slaInfo(i, nowMs).state === "breached";
+      return true;
+    })
+    .sort((a, b) => queueRank(a, nowMs) - queueRank(b, nowMs) || b.createdAt - a.createdAt);
+  const overdueCount = open.filter((i) => slaInfo(i, nowMs).state === "breached").length;
 
   return (
     <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-6 py-8 lg:grid-cols-3">
       <div className="min-w-0 space-y-6 lg:col-span-2">
         {/* Live queue */}
-        <Card title={`Live queue · ${queue.length} open`} className="!p-3">
+        <Card
+          title={`Live queue · ${open.length} open${overdueCount ? ` · ${overdueCount} overdue` : ""}`}
+          action={
+            <div className="flex gap-1">
+              {(["all", "mine", "escalated", "overdue"] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setQFilter(f)}
+                  className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold capitalize ${qFilter === f ? "bg-gradient-to-r from-brand-from to-brand-to text-white" : "bg-white/60 text-gray-300 hover:bg-white/90"}`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          }
+          className="!p-3"
+        >
           {queue.length === 0 ? (
-            <p className="px-2 pb-1 text-sm text-gray-500">No open incidents. Run a call and it will appear here.</p>
+            <p className="px-2 pb-1 text-sm text-gray-500">{open.length === 0 ? "No open incidents. Run a call and it will appear here." : "No tickets match this filter."}</p>
           ) : (
             <div className="flex gap-3 overflow-x-auto pb-1">
               {queue.map((q) => {
                 const sev = q.result?.severity ?? 0;
+                const t = ticketOf(q);
+                const sla = slaInfo(q, nowMs);
+                const slaShown = sla.state === "ok" || sla.state === "warn" || sla.state === "breached";
                 return (
                   <button
                     key={q.id}
                     type="button"
                     onClick={() => k.openIncident(q)}
-                    className={`min-w-[210px] rounded-xl p-3 text-left text-sm transition ${k.activeId === q.id ? "bg-white/90 shadow-glow" : "bg-white/50 hover:bg-white/70"}`}
+                    className={`min-w-[230px] rounded-xl p-3 text-left text-sm transition ${k.activeId === q.id ? "bg-white/90 shadow-glow" : "bg-white/50 hover:bg-white/70"}`}
+                    style={t.escalated ? { borderLeft: "4px solid #dc2626" } : undefined}
                   >
                     <div className="mb-1 flex items-center justify-between gap-2">
-                      <span className="mono text-[11px] text-gray-500">{q.id}</span>
+                      <span className="flex items-center gap-1.5">
+                        <Badge color={PRIORITY_COLOR[t.priority]}>P{t.priority}</Badge>
+                        <span className="mono text-[11px] text-gray-500">{q.id}</span>
+                      </span>
                       <Badge color={STATUS_COLOR[q.status]}>{STATUS_LABEL[q.status]}</Badge>
                     </div>
                     <div className="font-semibold uppercase" style={{ color: SEVERITY_COLORS[sev] }}>
                       {q.result?.incident_type} · {sev}/5
                     </div>
                     <div className="line-clamp-2 text-xs text-gray-400">{q.dispatch?.summary || q.message}</div>
+                    <div className="mt-2 flex items-center justify-between gap-2 text-[11px]">
+                      {slaShown ? (
+                        <span className="mono font-semibold" style={{ color: SLA_COLOR[sla.state] }}>
+                          {sla.state === "breached" ? `+${fmtDuration(sla.remainingMs)} overdue` : `${fmtDuration(sla.remainingMs)} left`}
+                        </span>
+                      ) : (
+                        <span className="text-gray-500">{sla.state === "missed" ? "dispatched late" : "dispatched"}</span>
+                      )}
+                      <span className="truncate text-gray-500">{t.assignee ? `👤 ${t.assignee}` : "unassigned"}</span>
+                    </div>
+                    {t.flags.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {t.flags.slice(0, 3).map((f) => (
+                          <span key={f} className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={{ color: flagMeta(f)?.color, background: `${flagMeta(f)?.color}1f` }}>
+                            {flagMeta(f)?.label ?? f}
+                          </span>
+                        ))}
+                        {t.flags.length > 3 && <span className="text-[10px] text-gray-500">+{t.flags.length - 3}</span>}
+                      </div>
+                    )}
                   </button>
                 );
               })}
@@ -99,20 +159,21 @@ export default function Dispatch() {
           <div className="h-[440px] overflow-hidden rounded-xl">
             <MapView cands={k.cands} pin={k.pin} units={k.units} assigned={assigned} now={k.now} />
           </div>
-          {inc && (
-            <div className="mt-3 flex flex-wrap items-center gap-2 px-1">
-              <span className="mono text-xs text-gray-500">{inc.id}</span>
-              {STATUS_ORDER.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => k.setStatus(inc.id, s)}
-                  className={`rounded-lg px-3 py-1 text-xs font-semibold transition-colors ${inc.status === s ? "text-white" : "bg-white/60 text-gray-300 hover:bg-white/90"}`}
-                  style={inc.status === s ? { background: STATUS_COLOR[s] } : undefined}
-                >
-                  {STATUS_LABEL[s]}
-                </button>
-              ))}
+          {k.result?.duplicate_of && (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-risk-moderate/50 bg-white/60 px-3 py-2 text-sm">
+              <span>
+                ⚠ Possible duplicate of <b className="mono">{k.result.duplicate_of.id}</b> ({k.result.duplicate_of.distance_m} m away, {k.result.duplicate_of.minutes_ago} min ago)
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  const other = k.incidents.find((x) => x.id === k.result?.duplicate_of?.id);
+                  if (other) k.openIncident(other);
+                }}
+                className="rounded-lg bg-white/80 px-2.5 py-1 text-xs font-semibold text-brand-from"
+              >
+                Open it
+              </button>
             </div>
           )}
           <div className="mt-2 flex flex-wrap items-center gap-2 px-1 text-[11px] text-gray-500">
@@ -303,7 +364,11 @@ export default function Dispatch() {
             )}
           </Card>
 
+          <TicketPanel />
+
           <WeatherCard pin={k.pin} incidentType={k.result?.incident_type} />
+
+          <ForecastCard />
 
           {k.result && k.pin && (
             <Card title="Location confidence" action={<Tag kind="COMPUTED" />}>

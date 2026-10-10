@@ -111,5 +111,13 @@
    "lon": 72.8544,
    "type": "tourism/hotel"
   }
+ ],
+ "crossword dadar": [
+  {
+   "name": "Crossword, Keluskar Road South, Shivaji Park",
+   "lat": 19.02618,
+   "lon": 72.83595,
+   "type": "shop/books"
+  }
  ]
 }

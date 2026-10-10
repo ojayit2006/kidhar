@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { adminEnabled, isAdmin } from "@/lib/adminAuth";
-import { listIncidents, storeBackend } from "@/lib/store";
+import { listIncidents, storeBackend, ticketColumnState } from "@/lib/store";
+import { flagMeta, resolutionLabel, slaInfo, ticketOf } from "@/lib/ticket";
 
 function readJson<T>(file: string, fallback: T): T {
   try {
@@ -39,7 +40,30 @@ export async function GET() {
 
   const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
 
+  // Ticket analytics: priorities, flags, outcomes and response-target compliance.
+  const nowMs = Date.now();
+  const tally = <K extends string>(keys: K[]) =>
+    keys.reduce<Record<string, number>>((acc, k) => {
+      acc[k] = (acc[k] ?? 0) + 1;
+      return acc;
+    }, {});
+  const tickets = incidents.map((i) => ({ i, t: ticketOf(i), sla: slaInfo(i, nowMs) }));
+  const judged = tickets.filter((x) => x.sla.state === "met" || x.sla.state === "missed" || x.sla.state === "breached");
+  const met = judged.filter((x) => x.sla.state === "met").length;
+  const dispatchTimes = tickets.filter((x) => x.i.assigned.length > 0).map((x) => (Math.min(...x.i.assigned.map((a) => a.dispatchedAt)) - x.i.createdAt) / 1000);
+  const ticketStats = {
+    byPriority: tally(tickets.map((x) => `P${x.t.priority}`)),
+    byFlag: tally(tickets.flatMap((x) => x.t.flags.map((f) => flagMeta(f)?.label ?? f))),
+    byResolution: tally(tickets.filter((x) => x.t.resolution).map((x) => resolutionLabel(x.t.resolution!.code))),
+    escalated: tickets.filter((x) => x.t.escalated).length,
+    unassignedOpen: tickets.filter((x) => x.i.status !== "resolved" && !x.t.assignee).length,
+    slaCompliancePct: judged.length ? Math.round((met / judged.length) * 100) : null,
+    overdueNow: tickets.filter((x) => x.sla.state === "breached").length,
+    avgTimeToDispatchSec: dispatchTimes.length ? Math.round(dispatchTimes.reduce((a, b) => a + b, 0) / dispatchTimes.length) : null,
+  };
+
   return Response.json({
+    tickets: ticketStats,
     stats: {
       total: incidents.length,
       last24h: incidents.filter((i) => i.createdAt >= dayAgo).length,
@@ -53,6 +77,7 @@ export async function GET() {
     },
     health: {
       storeBackend,
+      ticketStorage: ticketColumnState(),
       storeOk,
       storeError,
       anthropicKey: Boolean(process.env.ANTHROPIC_API_KEY),

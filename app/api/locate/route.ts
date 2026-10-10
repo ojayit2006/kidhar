@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { geocode, matchesAnyCandidate, type Candidate } from "@/lib/geocode";
 import { haversine, inMumbai, nearestUnits, type Unit } from "@/lib/geo";
-import { createIncidentSafe } from "@/lib/store";
+import { createIncidentSafe, listIncidents } from "@/lib/store";
 import { getWeather, weatherImpact } from "@/lib/weather";
 import { rateLimit } from "@/lib/ratelimit";
 
@@ -27,6 +27,7 @@ Work out WHERE the incident is and WHAT it is.
 - Call finalize exactly once. The pin must sit near coordinates you actually got from geocode results (offset only slightly for relations like "behind"). Radius is your honest uncertainty in metres: tight (80-200) when 2+ landmarks agree, wide (800-2500) when ambiguous.
 - Each landmark you mark used=true must carry the exact lat/lon of the geocode candidate you chose.
 - If it is ambiguous, say so, widen the radius, and write follow-up questions that would shrink the circle.
+- If caller device GPS is given and the description is vague or missing, centre the pin on the GPS point, list it as a used landmark named "Caller device GPS" with its exact lat/lon, and set the radius near the GPS accuracy. If GPS and the described landmarks disagree, say so and widen the radius.
 Never invent coordinates.`;
 
 const DISPATCH_SYSTEM =
@@ -219,11 +220,26 @@ export async function POST(req: Request) {
         const weather = await getWeather(pin.lat, pin.lon);
         const impact = weather ? weatherImpact(weather, final.incident_type) : null;
 
+        // Possible duplicate: an open incident within 300 m created in the last 45 minutes.
+        let duplicate_of: { id: string; distance_m: number; minutes_ago: number } | null = null;
+        try {
+          const cutoff = Date.now() - 45 * 60_000;
+          const near = (await listIncidents())
+            .filter((i) => i.status !== "resolved" && i.createdAt >= cutoff && i.result?.pin)
+            .map((i) => ({ id: i.id, distance_m: Math.round(haversine(pin, i.result.pin)), minutes_ago: Math.round((Date.now() - i.createdAt) / 60_000) }))
+            .filter((i) => i.distance_m <= 300)
+            .sort((a, b) => a.distance_m - b.distance_m);
+          duplicate_of = near[0] ?? null;
+        } catch {
+          // storage problems must not block locating
+        }
+
         send({
           type: "result",
           checks,
           weather,
           impact,
+          duplicate_of,
           incident_type: final.incident_type,
           severity: final.severity,
           services: final.services,

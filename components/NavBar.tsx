@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Siren, LayoutDashboard, History, BookOpen, WifiOff, Lock, MapPinned, LifeBuoy } from "lucide-react";
+import { Siren, LayoutDashboard, History, BookOpen, WifiOff, Lock, MapPinned, LifeBuoy, TrendingUp } from "lucide-react";
 import { LANGS, ROLES, useKidhar } from "./KidharProvider";
 import { PulseDot } from "./ui";
 
 const LINKS = [
   { href: "/dispatch", label: "Dispatch", icon: LayoutDashboard },
   { href: "/report", label: "Report", icon: Siren },
+  { href: "/forecast", label: "Outlook", icon: TrendingUp },
   { href: "/nearby", label: "Nearby", icon: MapPinned },
   { href: "/help", label: "Help", icon: LifeBuoy },
   { href: "/incidents", label: "Incidents", icon: History },
