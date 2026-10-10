@@ -118,7 +118,7 @@ export default function IncidentDetail({ params }: { params: Promise<{ id: strin
 
   function ticketSummary() {
     const t = ticketOf(inc!);
-    const sla = slaInfo(inc!, now || Date.now());
+    const sla = slaInfo(inc!, now);
     return (
       <Card title="Ticket" action={<Badge color={PRIORITY_COLOR[t.priority]}>P{t.priority}</Badge>}>
         <div className="grid gap-6 lg:grid-cols-2">

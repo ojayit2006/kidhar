@@ -9,7 +9,7 @@ import { rateLimit } from "@/lib/ratelimit";
 
 const MAX_MESSAGE_CHARS = 600;
 
-export const maxDuration = 120;
+export const maxDuration = 60;
 
 const OPUS = "claude-opus-5-5";
 const SONNET = "claude-sonnet-5-5";

@@ -22,7 +22,7 @@ export default function TicketPanel() {
 
   if (!inc) return null;
   const t = ticketOf(inc);
-  const now = k.now || Date.now();
+  const now = k.now;
   const sla = slaInfo(inc, now);
   const me = k.operator.trim();
   const mine = me !== "" && t.assignee === me;

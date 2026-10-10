@@ -44,7 +44,7 @@ export default function Dispatch() {
   const phaseIdx = STEPS.findIndex((s) => s.key === k.phase);
   const inc = k.activeIncident;
   const assigned = inc?.assigned ?? [];
-  const nowMs = k.now || Date.now();
+  const nowMs = k.now; // the provider clock starts after mount, so nothing here reads the time during prerender
   const me = k.operator.trim();
   const open = k.incidents.filter((i) => i.status !== "resolved");
   const queue = open
