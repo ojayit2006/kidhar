@@ -1,0 +1,115 @@
+{
+ "kirti college dadar": [
+  {
+   "name": "Kirti M. Doongursee College of Arts, Science and Commerce, Private Road",
+   "lat": 19.02141,
+   "lon": 72.83107,
+   "type": "amenity/college"
+  }
+ ],
+ "shivaji park dadar": [
+  {
+   "name": "Nirmal Nursing Home, Mumbai, Ranade Road",
+   "lat": 19.02505,
+   "lon": 72.83692,
+   "type": "amenity/clinic"
+  },
+  {
+   "name": "Shivaji Park, Dadar West, G/N Ward",
+   "lat": 19.02728,
+   "lon": 72.8384,
+   "type": "leisure/park"
+  },
+  {
+   "name": "Shivaji Park, Dadar West, G/N Ward",
+   "lat": 19.02875,
+   "lon": 72.83916,
+   "type": "place/neighbourhood"
+  },
+  {
+   "name": "Shivaji Park, Dadar West, G/N Ward",
+   "lat": 19.02677,
+   "lon": 72.83667,
+   "type": "leisure/park"
+  }
+ ],
+ "lucky restaurant bandra": [
+  {
+   "name": "Lucky, Swami Vivekanand Road, Qureshi Nagar Hutment Colony",
+   "lat": 19.05389,
+   "lon": 72.83771,
+   "type": "amenity/restaurant"
+  }
+ ],
+ "bandra railway station": [
+  {
+   "name": "Bandra Railway Station, Gurunanak Marg (Turner Road), Lal Mati (Lal Mitti)",
+   "lat": 19.05507,
+   "lon": 72.84014,
+   "type": "building/train_station"
+  }
+ ],
+ "andheri metro station": [
+  {
+   "name": "Andheri, Metro Station Access, Andheri East",
+   "lat": 19.12091,
+   "lon": 72.84803,
+   "type": "railway/stop"
+  }
+ ],
+ "lucky biryani": [
+  {
+   "name": "Lucky Biryani, Best Colony Road, Goregaon West",
+   "lat": 19.15097,
+   "lon": 72.83558,
+   "type": "amenity/restaurant"
+  }
+ ],
+ "goenka hall mumbai": [],
+ "goenka hall": [],
+ "goenka": [
+  {
+   "name": "Freedom Fighter Ramnanth Goenka Marg, Nariman Point, Colaba",
+   "lat": 18.92698,
+   "lon": 72.82112,
+   "type": "highway/tertiary"
+  },
+  {
+   "name": "Freedom Fighter Ramnanth Goenka Marg, Nariman Point, Fort",
+   "lat": 18.92779,
+   "lon": 72.82224,
+   "type": "highway/unclassified"
+  },
+  {
+   "name": "Goenka School, Bhau Tatoba Toraskar Marg, Adarsh Nagar",
+   "lat": 19.15074,
+   "lon": 72.83076,
+   "type": "amenity/school"
+  }
+ ],
+ "goenka auditorium": [],
+ "taj mahal palace colaba": [
+  {
+   "name": "Taj Mahal Palace, Prem J. Ramchandani Road, Apollo Bandar",
+   "lat": 18.92178,
+   "lon": 72.83328,
+   "type": "tourism/hotel"
+  }
+ ],
+ "taj lands end bandra": [
+  {
+   "name": "Taj Lands End, Byramji Jeejeebhoy Road, Land's End",
+   "lat": 19.0434,
+   "lon": 72.81953,
+   "type": "tourism/hotel"
+  }
+ ],
+ "taj santacruz": [
+  {
+   "name": "Taj Santacruz Mumbai, Arrivals pickup, Shastri Nagar",
+   "lat": 19.09269,
+   "lon": 72.8544,
+   "type": "tourism/hotel"
+  }
+ ]
+}
