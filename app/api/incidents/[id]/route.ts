@@ -1,8 +1,11 @@
-import { getIncident, updateIncident, type Assigned, type Status } from "@/lib/store";
+import { staffGuard } from "@/lib/adminAuth";
+import { getIncident, listIncidents, updateIncident, type Assigned, type Status } from "@/lib/store";
 
 const STATUSES: Status[] = ["new", "dispatched", "on_scene", "resolved"];
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const denied = await staffGuard();
+  if (denied) return denied;
   const { id } = await ctx.params;
   try {
     const inc = await getIncident(id);
@@ -14,6 +17,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 }
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const denied = await staffGuard();
+  if (denied) return denied;
   const { id } = await ctx.params;
   const body = (await req.json()) as { status?: Status; assign?: Omit<Assigned, "dispatchedAt"> };
   try {
@@ -27,6 +32,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     }
     if (body.assign) {
       if (inc.assigned.some((a) => a.name === body.assign!.name)) return Response.json({ incident: inc });
+      // A unit can only serve one open incident at a time.
+      const busyAt = (await listIncidents()).find((i) => i.id !== id && i.status !== "resolved" && i.assigned.some((a) => a.name === body.assign!.name));
+      if (busyAt) return Response.json({ error: `${body.assign.name} is already assigned to ${busyAt.id}.` }, { status: 409 });
       patch.assigned = [...inc.assigned, { ...body.assign, dispatchedAt: Date.now() }];
       if (inc.status === "new") patch.status = "dispatched";
     }

@@ -15,9 +15,9 @@
   --color-gray-400: #3b6190;
   --color-gray-500: #5a7ea6;
   --color-gray-600: #7794b6;
-  --font-sans: var(--font-body), var(--font-devanagari), system-ui, sans-serif;
-  --font-display: var(--font-bricolage), var(--font-devanagari), system-ui, sans-serif;
-  --font-mono: var(--font-plex), ui-monospace, monospace;
+  --font-sans: var(--font-publicsans), var(--font-devanagari), system-ui, sans-serif;
+  --font-display: var(--font-overpass), var(--font-devanagari), system-ui, sans-serif;
+  --font-mono: var(--font-overpassmono), ui-monospace, monospace;
   --shadow-glow: 0 8px 28px rgba(47, 125, 255, 0.35);
 }
 

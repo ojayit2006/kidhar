@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
@@ -103,7 +104,7 @@ export async function getIncident(id: string): Promise<Incident | undefined> {
 export async function createIncident(input: NewIncident): Promise<Incident> {
   const now = Date.now();
   const inc: Incident = {
-    id: `INC-${now.toString(36).toUpperCase().slice(-6)}`,
+    id: `INC-${crypto.randomBytes(6).toString("base64url").replace(/[-_]/g, "").slice(0, 8).toUpperCase()}`,
     createdAt: now,
     updatedAt: now,
     status: "new",
