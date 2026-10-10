@@ -15,6 +15,7 @@ In India we do not give addresses, we give landmarks. Kidhar? turns a Hinglish c
 - `/incidents` log and hotspot map, `/incidents/[id]` full record
 - `/report` citizen page: describe the emergency, share GPS, voice input
 - `/track/[id]` citizen tracking: live status and ETA
+- `/admin` password-protected operations panel: stats, incident management, CSV export, health, cache controls
 - `/how` how it works and limits
 
 ## Run
@@ -25,7 +26,11 @@ cp .env.example .env.local   # add ANTHROPIC_API_KEY
 npm run dev
 ```
 
-Incidents are stored in `data/incidents.json`. On a read-only host (for example Vercel) swap `lib/store.ts` for Supabase or another database.
+Environment (`.env.local`): `ANTHROPIC_API_KEY`, `ADMIN_PASSWORD` (enables `/admin`), and optionally `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`.
+
+**Storage:** with the Supabase variables set, incidents live in Supabase (run `supabase/schema.sql` once in the SQL editor). Without them the app falls back to `data/incidents.json`, which only works on a writable filesystem, so use Supabase when deploying.
+
+**Weather:** live conditions come from Open-Meteo (free, no key). They adjust ETAs (rain and fog slow units, with assumed multipliers), flag wind-driven fire spread, and refresh every 5 minutes on the dispatch page.
 
 If styles ever look stale in dev, stop the server, delete `.next`, and restart.
 

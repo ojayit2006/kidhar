@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Mic, Volume2, Send, Timer, Siren, MapPinned, Truck, Check, X, Loader2 } from "lucide-react";
 import { ROLES, useKidhar } from "@/components/KidharProvider";
 import { Badge, Card, Gauge, MetricBlock, SEVERITY_COLORS, Tag } from "@/components/ui";
+import WeatherCard from "@/components/WeatherCard";
 import { STATUS_COLOR, STATUS_LABEL, progress, remainingMin } from "@/lib/sim";
 import type { Status } from "@/lib/store";
 
@@ -186,7 +187,7 @@ export default function Dispatch() {
                 ))}
               </ul>
             )}
-            <p className="mt-3 text-[11px] text-gray-500">ETA = straight-line distance × 1.4 at an assumed average speed (fire 25 km/h, others 20 km/h). Not live traffic. Unit movement on the map is SIMULATED at 8x speed.</p>
+            <p className="mt-3 text-[11px] text-gray-500">ETA = straight-line distance × 1.4 at an assumed average speed (fire 25 km/h, others 20 km/h), adjusted for current weather. Not live traffic. Unit movement on the map is SIMULATED at 8x speed.</p>
           </Card>
         )}
 
@@ -301,6 +302,8 @@ export default function Dispatch() {
               </div>
             )}
           </Card>
+
+          <WeatherCard pin={k.pin} incidentType={k.result?.incident_type} />
 
           {k.result && k.pin && (
             <Card title="Location confidence" action={<Tag kind="COMPUTED" />}>

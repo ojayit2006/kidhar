@@ -3,7 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { geocode, matchesAnyCandidate, type Candidate } from "@/lib/geocode";
 import { haversine, inMumbai, nearestUnits, type Unit } from "@/lib/geo";
-import { createIncident } from "@/lib/store";
+import { createIncidentSafe } from "@/lib/store";
+import { getWeather, weatherImpact } from "@/lib/weather";
 import { rateLimit } from "@/lib/ratelimit";
 
 const MAX_MESSAGE_CHARS = 600;
@@ -124,7 +125,7 @@ export async function POST(req: Request) {
           if (e.type === "done") {
             const result = saved.find((x) => x.type === "result");
             if (result) {
-              const inc = createIncident({
+              const inc = await createIncidentSafe({
                 message,
                 result,
                 units: saved.find((x) => x.type === "units")?.units ?? [],
@@ -132,7 +133,7 @@ export async function POST(req: Request) {
                 gps,
                 source,
               });
-              raw({ type: "saved", id: inc.id });
+              if (inc) raw({ type: "saved", id: inc.id });
             }
           }
           raw(e);
@@ -215,9 +216,14 @@ export async function POST(req: Request) {
           checks.push({ label: `Device GPS agrees with the pin (${gap} m apart, GPS accuracy ±${Math.round(gps.accuracy_m)} m)`, pass: gap <= Math.max(400, gps.accuracy_m * 2) });
         }
 
+        const weather = await getWeather(pin.lat, pin.lon);
+        const impact = weather ? weatherImpact(weather, final.incident_type) : null;
+
         send({
           type: "result",
           checks,
+          weather,
+          impact,
           incident_type: final.incident_type,
           severity: final.severity,
           services: final.services,
@@ -230,7 +236,7 @@ export async function POST(req: Request) {
           low_confidence: lowConfidence,
         });
 
-        send({ type: "units", units: nearestUnits(pin, units) });
+        send({ type: "units", units: nearestUnits(pin, units, 2, impact?.etaFactor ?? 1) });
 
         const card = await client.messages.create({
           model: SONNET,
@@ -247,6 +253,8 @@ export async function POST(req: Request) {
                 landmarks: grounded.map((l: any) => l.resolved_name || l.text),
                 radius_m: Math.round(radius),
                 language: final.caller_language,
+                weather: weather ? `${weather.label}, ${Math.round(weather.tempC)}C, wind ${Math.round(weather.windKmh)} km/h` : undefined,
+                weather_notes: impact ? [impact.etaReason, ...impact.notes.map((n) => n.text)] : undefined,
                 sms_language: sms_language || undefined,
                 low_confidence: lowConfidence,
               }),
@@ -261,7 +269,7 @@ export async function POST(req: Request) {
           send({ type: "dispatch", summary: "Dispatch card unavailable", dispatch_note: "", caller_sms: "" });
         }
 
-        const inc = createIncident({
+        const inc = await createIncidentSafe({
           message,
           result: events.find((e) => e.type === "result"),
           units: events.find((e) => e.type === "units")?.units ?? [],
@@ -269,7 +277,7 @@ export async function POST(req: Request) {
           gps,
           source,
         });
-        send({ type: "saved", id: inc.id });
+        if (inc) send({ type: "saved", id: inc.id });
         send({ type: "done" });
         const all = readReplay();
         all[key] = events.filter((e) => e.type !== "saved");

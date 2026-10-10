@@ -19,7 +19,7 @@ export function haversine(a: LatLon, b: LatLon) {
 const SPEED_KMH = { fire: 25, police: 20, hospital: 20 } as const;
 const ROAD_FACTOR = 1.4;
 
-export function nearestUnits(pin: LatLon, units: Unit[], perType = 2) {
+export function nearestUnits(pin: LatLon, units: Unit[], perType = 2, etaFactor = 1) {
   const out: (Unit & { distance_m: number; road_m: number; eta_min: number })[] = [];
   for (const type of ["fire", "police", "hospital"] as const) {
     units
@@ -29,7 +29,7 @@ export function nearestUnits(pin: LatLon, units: Unit[], perType = 2) {
       .slice(0, perType)
       .forEach((u) => {
         const road_m = u.distance_m * ROAD_FACTOR;
-        out.push({ ...u, distance_m: Math.round(u.distance_m), road_m: Math.round(road_m), eta_min: Math.max(1, Math.round(road_m / 1000 / SPEED_KMH[type] * 60)) });
+        out.push({ ...u, distance_m: Math.round(u.distance_m), road_m: Math.round(road_m), eta_min: Math.max(1, Math.round((road_m / 1000 / SPEED_KMH[type]) * 60 * etaFactor)) });
       });
   }
   return out;
