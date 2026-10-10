@@ -2,7 +2,7 @@
 
 import "leaflet/dist/leaflet.css";
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, Circle, useMap } from "react-leaflet";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { Assigned } from "@/lib/store";
 import { lerpPoint, progress } from "@/lib/sim";
 
@@ -14,16 +14,31 @@ const COLORS = { fire: "#ff4d2e", police: "#3b82f6", hospital: "#22c55e" } as co
 
 function Fit({ pin, cands }: { pin: Pin | null; cands: Cand[] }) {
   const map = useMap();
+  // Depend on the pin's values, not the object: callers often rebuild it on every render (for example the live clock
+  // tick), which would restart the fly-to animation every half second so the map never settled on the incident.
+  const lat = pin?.lat;
+  const lon = pin?.lon;
+  const radius = pin?.radius_m ?? 0;
+  const firstCand = cands[0];
+  const first = useRef(true);
   useEffect(() => {
-    if (pin) map.flyTo([pin.lat, pin.lon], pin.radius_m > 1000 ? 14 : 15, { duration: 1 });
-    else if (cands.length) map.flyTo([cands[0].lat, cands[0].lon], 15, { duration: 0.8 });
-  }, [pin, cands.length, map]);
+    const animate = !first.current; // the first view opens already in place; only later changes fly
+    first.current = false;
+    if (lat != null && lon != null) {
+      const zoom = radius > 1000 ? 14 : 15;
+      if (animate) map.flyTo([lat, lon], zoom, { duration: 1 });
+      else map.setView([lat, lon], zoom, { animate: false });
+    } else if (firstCand) {
+      if (animate) map.flyTo([firstCand.lat, firstCand.lon], 15, { duration: 0.8 });
+      else map.setView([firstCand.lat, firstCand.lon], 15, { animate: false });
+    }
+  }, [lat, lon, radius, firstCand?.lat, firstCand?.lon, map]);
   return null;
 }
 
 export default function MapView({ cands, pin, units, assigned = [], now = 0 }: { cands: Cand[]; pin: Pin | null; units: UnitOut[]; assigned?: Assigned[]; now?: number }) {
   return (
-    <MapContainer center={[19.076, 72.8777]} zoom={12} className="h-full w-full" scrollWheelZoom>
+    <MapContainer center={pin ? [pin.lat, pin.lon] : [19.076, 72.8777]} zoom={pin ? (pin.radius_m > 1000 ? 14 : 15) : 12} className="h-full w-full" scrollWheelZoom>
       <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
       <Fit pin={pin} cands={cands} />
       {cands.map((c, i) => (

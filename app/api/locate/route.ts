@@ -256,7 +256,7 @@ export async function POST(req: Request) {
 
         const card = await client.messages.create({
           model: SONNET,
-          max_tokens: 700,
+          max_tokens: 2000,
           system: DISPATCH_SYSTEM,
           messages: [
             {
@@ -281,7 +281,8 @@ export async function POST(req: Request) {
         try {
           const text = block!.text;
           send({ type: "dispatch", ...JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)) });
-        } catch {
+        } catch (err) {
+          console.error("dispatch card failed:", (err as Error).message, "stop_reason:", card.stop_reason, "output_tokens:", card.usage?.output_tokens);
           send({ type: "dispatch", summary: "Dispatch card unavailable", dispatch_note: "", caller_sms: "" });
         }
 

@@ -119,5 +119,13 @@
    "lon": 72.83595,
    "type": "shop/books"
   }
+ ],
+ "bandra station": [
+  {
+   "name": "Bandra Station, Khar, H/W Ward",
+   "lat": 19.05511,
+   "lon": 72.84059,
+   "type": "landuse/railway"
+  }
  ]
 }
